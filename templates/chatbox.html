@@ -1,0 +1,123 @@
+<!-- templates/chatbox.html -->
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Flask 聊天界面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #chat-container {
+            width: 500px;
+            margin: 50px auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        #messages {
+            height: 300px;
+            border: 1px solid #ddd;
+            overflow-y: scroll;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        #message-input {
+            width: 80%;
+            padding: 10px;
+        }
+        #send-button {
+            width: 18%;
+            padding: 10px;
+        }
+        .message {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <h2>实时聊天</h2>
+        <div id="messages">
+            <!-- 消息将动态加载 -->
+        </div>
+        <input type="text" id="message-input" placeholder="输入消息...">
+        <button id="send-button">发送</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const messagesDiv = document.getElementById('messages');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+
+            // 加载现有消息
+            fetch('/get_messages')
+                .then(response => response.json())
+                .then(data => {
+                    data.messages.forEach(msg => {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.classList.add('message');
+                        msgDiv.textContent = msg;
+                        messagesDiv.appendChild(msgDiv);
+                    });
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                });
+
+            // 发送消息
+            sendButton.addEventListener('click', () => {
+                const message = messageInput.value.trim();
+                if (message !== '') {
+                    fetch('/send_message', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 'message': message })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            const msgDiv = document.createElement('div');
+                            msgDiv.classList.add('message');
+                            msgDiv.textContent = message;
+                            messagesDiv.appendChild(msgDiv);
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            messageInput.value = '';
+                        } else {
+                            alert('发送失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
+            });
+
+            // 允许按 Enter 键发送消息
+            messageInput.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    sendButton.click();
+                }
+            });
+
+            // 定时轮询获取新消息（每5秒）
+            setInterval(() => {
+                fetch('/get_messages')
+                    .then(response => response.json())
+                    .then(data => {
+                        // 清空当前消息
+                        messagesDiv.innerHTML = '';
+                        data.messages.forEach(msg => {
+                            const msgDiv = document.createElement('div');
+                            msgDiv.classList.add('message');
+                            msgDiv.textContent = msg;
+                            messagesDiv.appendChild(msgDiv);
+                        });
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    });
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
