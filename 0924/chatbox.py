@@ -41,7 +41,7 @@ load_messages_from_file()
 
 @app.route('/')
 def index():
-    return render_template('chatbox.html')
+    return render_template('chat.html')
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -87,4 +87,5 @@ def get_messages():
 
 if __name__ == '__main__':
     # 运行应用，监听所有可用 IP 地址，使用 5000 端口
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
+

@@ -1,0 +1,313 @@
+<!-- templates/chat.html -->
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Flask 聊天界面</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* 水印样式 */
+        #watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: rgba(200, 200, 200, 0.2);
+            pointer-events: none;  /* 让水印不可点击 */
+            z-index: -1;
+            user-select: none;  /* 防止选中 */
+        }
+
+        #chat-container {
+            width: 500px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+        }
+
+        h2 {
+            text-align: center;
+            color: #555;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+
+        #messages {
+            height: 300px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+            box-shadow: inset 0px 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message.user {
+            background-color: #e6f7ff;
+        }
+
+        .message.assistant {
+            background-color: #f6ffed;
+        }
+
+        .message-text {
+            flex: 1;
+            color: #333;
+            word-wrap: break-word;
+        }
+
+        .delete-button {
+            background-color: #ff6b6b;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s ease;
+        }
+
+        .delete-button:hover {
+            background-color: #ff4c4c;
+        }
+
+        #message-input {
+            width: calc(100% - 100px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.05);
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        #send-button, #clear-button {
+            width: 80px;
+            padding: 10px;
+            background-color: #48c78e;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        #send-button:hover {
+            background-color: #3db578;
+        }
+
+        #clear-button {
+            width: 100%;
+            padding: 10px;
+            background-color: #ffc107;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        #clear-button:hover {
+            background-color: #ffb306;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Scrollbar customization */
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #bbb;
+            border-radius: 10px;
+        }
+
+        #messages::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+    </style>
+</head>
+<body>
+    <!-- 添加水印 -->
+    <div id="watermark">昌西</div>
+
+    <div id="chat-container">
+        <h2>实时聊天</h2>
+        <div id="messages">
+            <!-- 消息将动态加载 -->
+        </div>
+        <div class="input-group">
+            <input type="text" id="message-input" placeholder="输入消息...">
+            <button id="send-button">发送</button>
+        </div>
+        <button id="clear-button">清除所有消息</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const messagesDiv = document.getElementById('messages');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const clearButton = document.getElementById('clear-button');
+
+            // 加载现有消息
+            function loadMessages() {
+                fetch('/get_messages')
+                    .then(response => response.json())
+                    .then(data => {
+                        messagesDiv.innerHTML = ''; // 清空当前消息
+                        data.messages.forEach(msg => {
+                            const msgDiv = document.createElement('div');
+                            msgDiv.classList.add('message');
+                            msgDiv.classList.add(msg.role); // 添加角色类名
+
+                            const msgText = document.createElement('span');
+                            msgText.classList.add('message-text');
+                            msgText.textContent = msg.text;
+
+                            if (msg.role === 'user') {
+                                const deleteBtn = document.createElement('button');
+                                deleteBtn.classList.add('delete-button');
+                                deleteBtn.textContent = '删除';
+                                deleteBtn.onclick = () => deleteMessage(msg.id);
+                                msgDiv.appendChild(msgText);
+                                msgDiv.appendChild(deleteBtn);
+                            } else {
+                                // 如果是 AI 回复，可以不添加删除按钮
+                                msgDiv.appendChild(msgText);
+                            }
+
+                            messagesDiv.appendChild(msgDiv);
+                        });
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    });
+            }
+
+            // 发送消息
+            sendButton.addEventListener('click', () => {
+                const message = messageInput.value.trim();
+                if (message !== '') {
+                    fetch('/send_message', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 'message': message })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            loadMessages(); // 重新加载消息
+                            messageInput.value = '';
+                        } else {
+                            alert('发送失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
+            });
+
+            // 允许按 Enter 键发送消息
+            messageInput.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    sendButton.click();
+                }
+            });
+
+            // 删除单条消息
+            function deleteMessage(id) {
+                fetch('/delete_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 'id': id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        loadMessages(); // 重新加载消息
+                    } else {
+                        alert('删除失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+
+            // 清除所有消息
+            clearButton.addEventListener('click', () => {
+                if (confirm('确定要清除所有消息吗？')) {
+                    fetch('/clear_messages', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            loadMessages(); // 重新加载消息
+                        } else {
+                            alert('清除失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
+            });
+
+            // 初始加载消息
+            loadMessages();
+
+            // 自动刷新消息，每2秒钟刷新一次
+            setInterval(loadMessages, 2000);
+        });
+    </script>
+</body>
+</html>

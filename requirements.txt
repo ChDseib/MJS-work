@@ -1,0 +1,4 @@
+Flask
+websocket-client
+python-dotenv
+spark_ai_python
