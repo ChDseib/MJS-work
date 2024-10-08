@@ -53,6 +53,44 @@
             margin-bottom: 20px;
         }
 
+        /* 控制输出字符长度的容器 */
+        #control-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #max-length-label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #max-length-input {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        #increase-btn, #decrease-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background-color: #48c78e;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-right: 5px;
+        }
+
+        #increase-btn:hover, #decrease-btn:hover {
+            background-color: #3db578;
+        }
+
         #messages {
             flex: 1;
             border-radius: 8px;
@@ -62,6 +100,7 @@
             margin-bottom: 15px;
             background-color: #f9f9f9;
             box-shadow: inset 0px 4px 6px rgba(0, 0, 0, 0.05);
+            position: relative;
         }
 
         .message {
@@ -105,6 +144,7 @@
             text-align: left;
         }
 
+        /* 删除按钮样式 */
         .message .delete-button {
             background-color: #ff6b6b;
             border: none;
@@ -205,6 +245,15 @@
 
     <div id="chat-container">
         <h2>实时聊天</h2>
+
+        <!-- 控制输出字符长度的功能 -->
+        <div id="control-container">
+            <label id="max-length-label" for="max-length-input">最大回复字符数：</label>
+            <button id="decrease-btn">-</button>
+            <input type="number" id="max-length-input" value="500" min="100" max="2000">
+            <button id="increase-btn">+</button>
+        </div>
+
         <div id="messages">
             <!-- 消息将动态加载 -->
         </div>
@@ -219,6 +268,10 @@
             const messageInput = document.getElementById('message-input');
             const sendButton = document.getElementById('send-button');
             const clearButton = document.getElementById('clear-button');
+
+            const maxLengthInput = document.getElementById('max-length-input');
+            const increaseBtn = document.getElementById('increase-btn');
+            const decreaseBtn = document.getElementById('decrease-btn');
 
             // 加载现有消息
             function loadMessages() {
@@ -254,13 +307,17 @@
             // 发送消息
             sendButton.addEventListener('click', () => {
                 const message = messageInput.value.trim();
+                const max_length = maxLengthInput.value.trim();
                 if (message !== '') {
                     fetch('/send_message', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ 'message': message })
+                        body: JSON.stringify({
+                            'message': message,
+                            'max_length': max_length
+                        })
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -327,6 +384,31 @@
                     .catch(error => {
                         console.error('Error:', error);
                     });
+                }
+            });
+
+            // 控制输出字符长度的功能
+            increaseBtn.addEventListener('click', () => {
+                let currentValue = parseInt(maxLengthInput.value);
+                if (currentValue < 2000) { // 设置最大值为2000
+                    maxLengthInput.value = currentValue + 1;
+                }
+            });
+
+            decreaseBtn.addEventListener('click', () => {
+                let currentValue = parseInt(maxLengthInput.value);
+                if (currentValue > 1) { // 设置最小值为100
+                    maxLengthInput.value = currentValue - 1;
+                }
+            });
+
+            // 限制输入框的值在100到2000之间
+            maxLengthInput.addEventListener('input', () => {
+                let value = parseInt(maxLengthInput.value);
+                if (isNaN(value) || value < 1) {
+                    maxLengthInput.value = 1;
+                } else if (value > 2000) {
+                    maxLengthInput.value = 2000;
                 }
             });
 
