@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.DEBUG)
 # 存储所有消息，每条消息包含唯一的 id、文本内容和角色
 messages = []
 next_id = 1  # 用于分配唯一的消息 ID
-message_file = 'messages.txt'  # 存储消息的文件路径
+message_file = '1008/messages.txt'  # 存储消息的文件路径
 
 def load_messages_from_file():
     """
