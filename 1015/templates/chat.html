@@ -38,6 +38,9 @@
             box-sizing: border-box;
             position: relative;
             z-index: 1;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
         }
 
         /* 新增的标题容器，使用 Flexbox 对齐标题和按钮 */
@@ -71,7 +74,7 @@
         }
 
         #messages {
-            height: 300px;
+            flex: 1;
             border-radius: 8px;
             border: 1px solid #ddd;
             overflow-y: scroll;
@@ -79,6 +82,7 @@
             margin-bottom: 15px;
             background-color: #f9f9f9;
             box-shadow: inset 0px 4px 6px rgba(0, 0, 0, 0.05);
+            position: relative;
         }
 
         /* 通用消息样式 */
@@ -104,6 +108,25 @@
             background-color: #ffffff; /* 浅蓝色 */
             margin-right: auto;
             text-align: left;
+            position: relative;
+        }
+
+        /* 加载动画样式 */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #48c78e;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         #message-input {
@@ -162,6 +185,7 @@
             border-radius: 8px;
             box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.05);
         }
+
         #clear-button {
             width: 100%;
             padding: 10px;
@@ -213,7 +237,7 @@
             display: none; /* 初始隐藏 */
         }
 
-        .spinner {
+        .spinner-large {
             border: 8px solid #f3f3f3;
             border-top: 8px solid #48c78e;
             border-radius: 50%;
@@ -221,12 +245,6 @@
             height: 60px;
             animation: spin 1s linear infinite;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
     </style>
 </head>
 <body>
@@ -235,7 +253,7 @@
 
     <!-- 加载动画 -->
     <div id="loading-overlay">
-        <div class="spinner"></div>
+        <div class="spinner-large"></div>
     </div>
 
     <div id="chat-container">
@@ -262,7 +280,7 @@
         <button id="clear-button">清除所有消息</button>
     </div>
 
-   <script>
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
             const messagesDiv = document.getElementById('messages');
             const messageInput = document.getElementById('message-input');
@@ -277,17 +295,17 @@
             let img_name = '';
             let img_url = '';
 
-            // Show loading animation
+            // 显示加载动画
             function showLoading() {
                 loadingOverlay.style.display = 'flex';
             }
 
-            // Hide loading animation
+            // 隐藏加载动画
             function hideLoading() {
                 loadingOverlay.style.display = 'none';
             }
 
-            // Disable inputs and buttons
+            // 禁用输入和按钮
             function disableInputs() {
                 messageInput.disabled = true;
                 sendButton.disabled = true;
@@ -297,7 +315,7 @@
                 imageInput.disabled = true;
             }
 
-            // Enable inputs and buttons
+            // 启用输入和按钮
             function enableInputs() {
                 messageInput.disabled = false;
                 sendButton.disabled = false;
@@ -307,12 +325,12 @@
                 imageInput.disabled = false;
             }
 
-            // Load existing messages
+            // 加载现有消息
             function loadMessages() {
                 fetch('/get_messages')
                     .then(response => response.json())
                     .then(data => {
-                        messagesDiv.innerHTML = ''; // Clear current messages
+                        messagesDiv.innerHTML = ''; // 清空当前消息
                         data.messages.forEach(msg => {
                             const msgDiv = document.createElement('div');
                             msgDiv.classList.add('message');
@@ -329,12 +347,14 @@
 
                             msgDiv.appendChild(msgText);
 
-                            // If message contains file_ids, display images
+                            // 不展示上传的图片，只展示文本
+                            // 如果需要展示图片，请取消注释以下代码并根据实际需求调整
+                            /*
                             if (msg.file_ids && msg.file_ids.length > 0) {
                                 msg.file_ids.forEach(file_id => {
                                     const imgElement = document.createElement('img');
-                                    imgElement.src = `https://your-image-host.com/${file_id}`; // Replace with actual image URL logic
-                                    imgElement.alt = 'Uploaded Image';
+                                    imgElement.src = `https://your-image-host.com/${file_id}`; // 请根据实际情况修改
+                                    imgElement.alt = '上传的图片';
                                     imgElement.style.maxWidth = '100px';
                                     imgElement.style.maxHeight = '100px';
                                     imgElement.style.display = 'block';
@@ -342,17 +362,18 @@
                                     msgDiv.appendChild(imgElement);
                                 });
                             }
+                            */
 
                             messagesDiv.appendChild(msgDiv);
                         });
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                     })
                     .catch(error => {
-                        console.error('Error loading messages:', error);
+                        console.error('加载消息时出错:', error);
                     });
             }
 
-            // Send message
+            // 发送消息
             sendButton.addEventListener('click', () => {
                 const message = messageInput.value.trim();
                 if (message !== '' || img_name !== '') {
@@ -376,7 +397,16 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Clear input fields and image preview
+                            // 插入一个带加载动画的AI消息框
+                            const aiLoadingMessage = {
+                                'id': 'loading',  // 临时ID
+                                'text': 'AI正在回复...',
+                                'role': 'assistant',
+                                'file_ids': []
+                            };
+                            appendMessage(aiLoadingMessage);
+
+                            // 清空输入框和图片信息
                             messageInput.value = '';
                             img_name = '';
                             img_url = '';
@@ -384,36 +414,36 @@
                             imagePreview.style.display = 'none';
                         } else {
                             alert('发送失败: ' + data.message);
+                            hideLoading();
+                            enableInputs();
                         }
-                        hideLoading();
-                        enableInputs();
-                        loadMessages(); // Reload messages
+                        // 不立即加载消息，等待AI回复
                     })
                     .catch(error => {
-                        console.error('Error:', error);
+                        console.error('发送消息时出错:', error);
                         hideLoading();
                         enableInputs();
                     });
                 }
             });
 
-            // Allow sending message with Enter key
+            // 允许按 Enter 键发送消息
             messageInput.addEventListener('keyup', (event) => {
                 if (event.key === 'Enter') {
                     sendButton.click();
                 }
             });
 
-            // Upload image button click event
+            // 上传图片按钮点击事件
             uploadButton.addEventListener('click', () => {
                 imageInput.click();
             });
 
-            // Handle image selection
+            // 处理图片选择
             imageInput.addEventListener('change', () => {
                 const file = imageInput.files[0];
                 if (file) {
-                    // Show preview
+                    // 显示预览
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         imagePreview.src = e.target.result;
@@ -421,7 +451,7 @@
                     }
                     reader.readAsDataURL(file);
 
-                    // Upload image to backend
+                    // 上传图片到后端
                     showLoading();
                     disableInputs();
 
@@ -447,11 +477,11 @@
                         }
                         hideLoading();
                         enableInputs();
-                        // Clear file input
+                        // 清除文件输入
                         imageInput.value = '';
                     })
                     .catch(error => {
-                        console.error('Error uploading image:', error);
+                        console.error('上传图片时出错:', error);
                         hideLoading();
                         enableInputs();
                         alert('图片上传出错');
@@ -463,7 +493,7 @@
                 }
             });
 
-            // Clear all messages and create a new conversation
+            // 清除所有消息并创建新对话
             clearButton.addEventListener('click', () => {
                 if (confirm('确定要清除所有消息吗？')) {
                     showLoading();
@@ -474,7 +504,7 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            loadMessages(); // Reload messages
+                            loadMessages(); // 重新加载消息
                             alert('已创建新的对话');
                         } else {
                             alert('清除失败: ' + data.message);
@@ -483,14 +513,14 @@
                         enableInputs();
                     })
                     .catch(error => {
-                        console.error('Error:', error);
+                        console.error('清除消息时出错:', error);
                         hideLoading();
                         enableInputs();
                     });
                 }
             });
 
-            // Add new conversation button click event
+            // 新增的➕号按钮点击事件，创建新的对话
             addConversationButton.addEventListener('click', () => {
                 showLoading();
                 disableInputs();
@@ -500,7 +530,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        loadMessages(); // Reload messages
+                        loadMessages(); // 重新加载消息
                         alert('已创建新的对话');
                     } else {
                         alert('创建对话失败: ' + data.message);
@@ -509,17 +539,101 @@
                     enableInputs();
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('创建对话时出错:', error);
                     hideLoading();
                     enableInputs();
                 });
             });
 
-            // Periodically refresh messages every 2 seconds
+            // 定时刷新消息，每2秒调用一次 loadMessages()
             setInterval(loadMessages, 2000);
 
-            // Initial load of messages
+            // 初始加载消息
             loadMessages();
+
+            // 添加新消息到消息框
+            function appendMessage(msg) {
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('message');
+
+                if (msg.role === 'user') {
+                    msgDiv.classList.add('user');
+                } else if (msg.role === 'assistant') {
+                    msgDiv.classList.add('assistant');
+                }
+
+                const msgText = document.createElement('span');
+                msgText.classList.add('message-text');
+                msgText.textContent = msg.text;
+
+                msgDiv.appendChild(msgText);
+                messagesDiv.appendChild(msgDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+
+            // 监听服务器发送的AI消息并更新加载动画
+            // 这里假设AI回复会在定时刷新中被加载到消息框中
+            // 我们需要检测加载中的AI消息并替换它
+            setInterval(() => {
+                const allMessages = messagesDiv.getElementsByClassName('message');
+                if (allMessages.length > 0) {
+                    const lastMessage = allMessages[allMessages.length - 1];
+                    if (lastMessage.classList.contains('assistant') && lastMessage.id === 'loading') {
+                        // 在这里可以添加额外的逻辑，例如动画
+                    }
+                }
+            }, 1000);
+
+            // 重写 loadMessages 以处理替换加载动画
+            function loadMessages() {
+                fetch('/get_messages')
+                    .then(response => response.json())
+                    .then(data => {
+                        messagesDiv.innerHTML = ''; // 清空当前消息
+                        data.messages.forEach(msg => {
+                            const msgDiv = document.createElement('div');
+                            msgDiv.classList.add('message');
+
+                            if (msg.role === 'user') {
+                                msgDiv.classList.add('user');
+                            } else if (msg.role === 'assistant') {
+                                msgDiv.classList.add('assistant');
+                            }
+
+                            const msgText = document.createElement('span');
+                            msgText.classList.add('message-text');
+                            msgText.textContent = msg.text;
+
+                            msgDiv.appendChild(msgText);
+
+                            // 不展示上传的图片，只展示文本
+                            /*
+                            if (msg.file_ids && msg.file_ids.length > 0) {
+                                msg.file_ids.forEach(file_id => {
+                                    const imgElement = document.createElement('img');
+                                    imgElement.src = `https://your-image-host.com/${file_id}`; // 请根据实际情况修改
+                                    imgElement.alt = '上传的图片';
+                                    imgElement.style.maxWidth = '100px';
+                                    imgElement.style.maxHeight = '100px';
+                                    imgElement.style.display = 'block';
+                                    imgElement.style.marginTop = '10px';
+                                    msgDiv.appendChild(imgElement);
+                                });
+                            }
+                            */
+
+                            messagesDiv.appendChild(msgDiv);
+                        });
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        hideLoading();  // 确保加载完成后隐藏加载动画
+                        enableInputs();  // 重新启用输入
+                    })
+                    .catch(error => {
+                        console.error('加载消息时出错:', error);
+                        hideLoading();
+                        enableInputs();
+                    });
+            }
         });
     </script>
 </body>
