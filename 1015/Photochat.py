@@ -201,13 +201,11 @@ def send_message():
         session['conversation_id'] = conversation_id
         messages[conversation_id] = []
 
-    # 准备 file_ids 如果有图片
+    # 始终清除 file_id
+    file_id = session.pop('file_id', None)
     file_ids = []
-    if img_name and img_url:
-        # 从会话中获取 file_id
-        file_id = session.pop('file_id', None)
-        if file_id:
-            file_ids.append(file_id)
+    if img_name and img_url and file_id:
+        file_ids.append(file_id)
 
     # 添加用户消息，包含可选的 file_ids
     user_message = {

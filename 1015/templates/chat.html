@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Flask 聊天界面</title>
+    <title>昌西的西昌</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -94,6 +94,7 @@
             max-width: 80%;
             word-wrap: break-word;
             clear: both;
+            position: relative;
         }
 
         /* 用户消息样式 */
@@ -108,10 +109,9 @@
             background-color: #ffffff; /* 浅蓝色 */
             margin-right: auto;
             text-align: left;
-            position: relative;
         }
 
-        /* 加载动画样式 */
+        /* 加载动画在AI消息中的样式 */
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #48c78e;
@@ -120,8 +120,7 @@
             height: 20px;
             animation: spin 1s linear infinite;
             display: inline-block;
-            vertical-align: middle;
-            margin-right: 10px;
+            margin-left: 10px;
         }
 
         @keyframes spin {
@@ -185,7 +184,6 @@
             border-radius: 8px;
             box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.05);
         }
-
         #clear-button {
             width: 100%;
             padding: 10px;
@@ -237,7 +235,7 @@
             display: none; /* 初始隐藏 */
         }
 
-        .spinner-large {
+        .spinner-overlay {
             border: 8px solid #f3f3f3;
             border-top: 8px solid #48c78e;
             border-radius: 50%;
@@ -245,6 +243,7 @@
             height: 60px;
             animation: spin 1s linear infinite;
         }
+
     </style>
 </head>
 <body>
@@ -253,13 +252,13 @@
 
     <!-- 加载动画 -->
     <div id="loading-overlay">
-        <div class="spinner-large"></div>
+        <div class="spinner-overlay"></div>
     </div>
 
     <div id="chat-container">
         <!-- 新增的标题容器 -->
         <div class="header">
-            <h2>实时聊天</h2>
+            <h2>西昌</h2>
             <!-- 新增的➕号按钮 -->
             <button id="add-conversation-button">+</button>
         </div>
@@ -294,6 +293,8 @@
 
             let img_name = '';
             let img_url = '';
+            let awaiting_ai_reply = false;  // 标记是否在等待AI回复
+            let last_message_id = 0;  // 记录最后一条消息的ID
 
             // 显示加载动画
             function showLoading() {
@@ -330,8 +331,13 @@
                 fetch('/get_messages')
                     .then(response => response.json())
                     .then(data => {
-                        messagesDiv.innerHTML = ''; // 清空当前消息
-                        data.messages.forEach(msg => {
+                        const existingMessages = Array.from(messagesDiv.children).map(msg => msg.getAttribute('data-id'));
+                        const newMessages = data.messages;
+
+                        // 清空消息显示区域
+                        messagesDiv.innerHTML = '';
+
+                        newMessages.forEach(msg => {
                             const msgDiv = document.createElement('div');
                             msgDiv.classList.add('message');
 
@@ -341,15 +347,16 @@
                                 msgDiv.classList.add('assistant');
                             }
 
+                            // 设置数据ID属性，方便追踪
+                            msgDiv.setAttribute('data-id', msg.id);
+
                             const msgText = document.createElement('span');
                             msgText.classList.add('message-text');
                             msgText.textContent = msg.text;
 
                             msgDiv.appendChild(msgText);
 
-                            // 不展示上传的图片，只展示文本
-                            // 如果需要展示图片，请取消注释以下代码并根据实际需求调整
-                            /*
+                            // 如果消息包含 file_ids，显示图片
                             if (msg.file_ids && msg.file_ids.length > 0) {
                                 msg.file_ids.forEach(file_id => {
                                     const imgElement = document.createElement('img');
@@ -362,10 +369,29 @@
                                     msgDiv.appendChild(imgElement);
                                 });
                             }
-                            */
 
                             messagesDiv.appendChild(msgDiv);
+
+                            // 更新 last_message_id
+                            if (msg.id > last_message_id) {
+                                last_message_id = msg.id;
+                            }
                         });
+
+                        // 如果在等待AI回复，并且AI回复已到达，移除临时消息
+                        if (awaiting_ai_reply) {
+                            // 找到最新的AI消息
+                            const latest_ai_message = newMessages.slice().reverse().find(msg => msg.role === 'assistant');
+                            if (latest_ai_message && latest_ai_message.id > last_message_id - 1) {
+                                // AI回复已经到达，移除临时AI消息
+                                const tempAiMessage = document.querySelector('.message.assistant.temp');
+                                if (tempAiMessage) {
+                                    messagesDiv.removeChild(tempAiMessage);
+                                }
+                                awaiting_ai_reply = false;
+                            }
+                        }
+
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                     })
                     .catch(error => {
@@ -397,27 +423,34 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // 插入一个带加载动画的AI消息框
-                            const aiLoadingMessage = {
-                                'id': 'loading',  // 临时ID
-                                'text': 'AI正在回复...',
-                                'role': 'assistant',
-                                'file_ids': []
-                            };
-                            appendMessage(aiLoadingMessage);
-
-                            // 清空输入框和图片信息
+                            // 仅清空输入框和图片信息
                             messageInput.value = '';
                             img_name = '';
                             img_url = '';
                             imagePreview.src = '#';
                             imagePreview.style.display = 'none';
+
+                            // 添加临时AI消息框
+                            const tempAiDiv = document.createElement('div');
+                            tempAiDiv.classList.add('message', 'assistant', 'temp');
+                            tempAiDiv.setAttribute('data-id', 'temp-ai');
+                            const tempAiText = document.createElement('span');
+                            tempAiText.classList.add('message-text');
+                            tempAiText.textContent = 'AI正在回复';
+                            const spinner = document.createElement('span');
+                            spinner.classList.add('spinner');
+                            tempAiDiv.appendChild(tempAiText);
+                            tempAiDiv.appendChild(spinner);
+                            messagesDiv.appendChild(tempAiDiv);
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                            awaiting_ai_reply = true;
                         } else {
                             alert('发送失败: ' + data.message);
-                            hideLoading();
-                            enableInputs();
                         }
-                        // 不立即加载消息，等待AI回复
+                        hideLoading();
+                        enableInputs();
+                        loadMessages(); // 重新加载消息
                     })
                     .catch(error => {
                         console.error('发送消息时出错:', error);
@@ -550,90 +583,6 @@
 
             // 初始加载消息
             loadMessages();
-
-            // 添加新消息到消息框
-            function appendMessage(msg) {
-                const msgDiv = document.createElement('div');
-                msgDiv.classList.add('message');
-
-                if (msg.role === 'user') {
-                    msgDiv.classList.add('user');
-                } else if (msg.role === 'assistant') {
-                    msgDiv.classList.add('assistant');
-                }
-
-                const msgText = document.createElement('span');
-                msgText.classList.add('message-text');
-                msgText.textContent = msg.text;
-
-                msgDiv.appendChild(msgText);
-                messagesDiv.appendChild(msgDiv);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-
-            // 监听服务器发送的AI消息并更新加载动画
-            // 这里假设AI回复会在定时刷新中被加载到消息框中
-            // 我们需要检测加载中的AI消息并替换它
-            setInterval(() => {
-                const allMessages = messagesDiv.getElementsByClassName('message');
-                if (allMessages.length > 0) {
-                    const lastMessage = allMessages[allMessages.length - 1];
-                    if (lastMessage.classList.contains('assistant') && lastMessage.id === 'loading') {
-                        // 在这里可以添加额外的逻辑，例如动画
-                    }
-                }
-            }, 1000);
-
-            // 重写 loadMessages 以处理替换加载动画
-            function loadMessages() {
-                fetch('/get_messages')
-                    .then(response => response.json())
-                    .then(data => {
-                        messagesDiv.innerHTML = ''; // 清空当前消息
-                        data.messages.forEach(msg => {
-                            const msgDiv = document.createElement('div');
-                            msgDiv.classList.add('message');
-
-                            if (msg.role === 'user') {
-                                msgDiv.classList.add('user');
-                            } else if (msg.role === 'assistant') {
-                                msgDiv.classList.add('assistant');
-                            }
-
-                            const msgText = document.createElement('span');
-                            msgText.classList.add('message-text');
-                            msgText.textContent = msg.text;
-
-                            msgDiv.appendChild(msgText);
-
-                            // 不展示上传的图片，只展示文本
-                            /*
-                            if (msg.file_ids && msg.file_ids.length > 0) {
-                                msg.file_ids.forEach(file_id => {
-                                    const imgElement = document.createElement('img');
-                                    imgElement.src = `https://your-image-host.com/${file_id}`; // 请根据实际情况修改
-                                    imgElement.alt = '上传的图片';
-                                    imgElement.style.maxWidth = '100px';
-                                    imgElement.style.maxHeight = '100px';
-                                    imgElement.style.display = 'block';
-                                    imgElement.style.marginTop = '10px';
-                                    msgDiv.appendChild(imgElement);
-                                });
-                            }
-                            */
-
-                            messagesDiv.appendChild(msgDiv);
-                        });
-                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                        hideLoading();  // 确保加载完成后隐藏加载动画
-                        enableInputs();  // 重新启用输入
-                    })
-                    .catch(error => {
-                        console.error('加载消息时出错:', error);
-                        hideLoading();
-                        enableInputs();
-                    });
-            }
         });
     </script>
 </body>
