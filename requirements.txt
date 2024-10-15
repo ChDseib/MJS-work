@@ -1,4 +1,11 @@
-Flask
+Flask~=3.0.3
 websocket-client
-python-dotenv
+python-dotenv~=1.0.1
 spark_ai_python
+sparkai~=0.3.0
+Flask-Cors~=5.0.0
+requests~=2.32.3
+pip~=23.2.1
+attrs~=24.2.0
+distro~=1.9.0
+protobuf~=4.25.5
