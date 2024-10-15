@@ -9,32 +9,33 @@ from flask_cors import CORS
 import requests
 import json
 import uuid
+from werkzeug.utils import secure_filename
 
-# 加载环境变量
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # 启用 CORS
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # 从环境变量加载 SECRET_KEY
+CORS(app)  # Enable CORS
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Load SECRET_KEY from environment variables
 
-# 配置日志
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# 存储所有消息，每条消息包含唯一的 id、文本内容和角色
-# 修改为按 conversation_id 存储
+# Store all messages, each message contains a unique id, text content, role, and optional file_ids
 messages = {}
-next_id = 1  # 用于分配唯一的消息 ID
-message_file = '1015/messages.txt'  # 存储消息的文件路径
+next_id = 1  # For assigning unique message IDs
+message_file = '1015/messages.txt'  # Path to store messages
 
-# 新增环境变量
+# Environment variables for SPARKAI
 SPARKAI_APP_ID = os.getenv('SPARKAI_APP_ID')
 SPARKAI_AUTH_TOKEN = os.getenv('SPARKAI_AUTH_TOKEN')
-SPARKAI_URL = os.getenv('SPARKAI_URL')  # 创建对话的 URL
-SPARKAI_RUNS_URL = os.getenv('SPARKAI_RUNS_URL')  # 发送消息的 URL
+SPARKAI_URL = os.getenv('SPARKAI_URL')  # URL to create conversations
+SPARKAI_RUNS_URL = os.getenv('SPARKAI_RUNS_URL')  # URL to send messages
+SPARKAI_UPLOAD_URL = os.getenv('SPARKAI_UPLOAD_URL')  # URL to upload files
 
 def load_messages_from_file():
     """
-    从文件中加载消息到内存。
+    Load messages from file into memory.
     """
     global messages, next_id
     if os.path.exists(message_file):
@@ -43,17 +44,23 @@ def load_messages_from_file():
                 line = line.strip()
                 if line:
                     parts = line.split('|')
-                    if len(parts) == 4:
+                    if len(parts) >= 4:
                         try:
                             conversation_id = parts[0]
                             message_id = int(parts[1])
                             message_text = parts[2]
                             message_role = parts[3]
+                            file_ids = json.loads(parts[4]) if len(parts) > 4 else []
                             if conversation_id not in messages:
                                 messages[conversation_id] = []
-                            messages[conversation_id].append({'id': message_id, 'text': message_text, 'role': message_role})
+                            messages[conversation_id].append({
+                                'id': message_id,
+                                'text': message_text,
+                                'role': message_role,
+                                'file_ids': file_ids
+                            })
                             if message_id >= next_id:
-                                next_id = message_id + 1  # 更新下一个 ID 为最新的
+                                next_id = message_id + 1  # Update next ID
                         except ValueError:
                             continue
         logging.debug(f"Loaded messages from {message_file}")
@@ -62,20 +69,20 @@ def load_messages_from_file():
 
 def save_messages_to_file():
     """
-    将当前消息列表保存到文件。
+    Save the current message list to file.
     """
     with open(message_file, 'w', encoding='utf-8') as file:
         for conv_id, msgs in messages.items():
             for message in msgs:
-                file.write(f"{conv_id}|{message['id']}|{message['text']}|{message['role']}\n")
+                file.write(f"{conv_id}|{message['id']}|{message['text']}|{message['role']}|{json.dumps(message.get('file_ids', []))}\n")
     logging.debug(f"Saved messages to {message_file}")
 
-# 在启动时加载消息
+# Load messages at startup
 load_messages_from_file()
 
 def create_conversation():
     """
-    创建一个新的对话，返回 conversation_id。
+    Create a new conversation and return the conversation_id.
     """
     url = SPARKAI_URL  # "https://qianfan.baidubce.com/v2/app/conversation"
     payload = json.dumps({
@@ -97,17 +104,21 @@ def create_conversation():
         logging.error(f"Failed to create conversation: {e}")
         return None
 
-def send_query(conversation_id, query, stream=False):
+def send_query(conversation_id, query, file_ids=None, stream=False):
     """
-    发送用户消息到 AI，返回 AI 回复的文本。
+    Send user message to AI and return AI's reply.
     """
     url = SPARKAI_RUNS_URL  # "https://qianfan.baidubce.com/v2/app/conversation/runs"
-    payload = json.dumps({
+    payload = {
         "app_id": SPARKAI_APP_ID,
         "query": query,
         "stream": stream,
         "conversation_id": conversation_id
-    })
+    }
+    if file_ids:
+        payload["file_ids"] = file_ids
+
+    payload = json.dumps(payload)
     headers = {
         'Content-Type': 'application/json',
         'X-Appbuilder-Authorization': SPARKAI_AUTH_TOKEN
@@ -117,7 +128,7 @@ def send_query(conversation_id, query, stream=False):
         response = requests.post(url, headers=headers, data=payload)
         response.raise_for_status()
         data = response.json()
-        # 提取 AI 回复的文本
+        # Extract AI's reply text
         outputs = data.get("content", [])
         ai_text = ""
         for item in outputs:
@@ -132,15 +143,15 @@ def send_query(conversation_id, query, stream=False):
 @app.before_request
 def make_session_permanent():
     """
-    确保每个请求都有会话。
+    Ensure each request has a session.
     """
     session.permanent = True
 
 @app.route('/')
 def index():
     """
-    渲染聊天界面。
-    如果用户还没有 conversation_id，则创建一个新的。
+    Render the chat interface.
+    Create a new conversation if the user doesn't have one.
     """
     if 'conversation_id' not in session:
         conversation_id = create_conversation()
@@ -153,15 +164,18 @@ def index():
 @app.route('/send_message', methods=['POST'])
 def send_message():
     """
-    接收用户消息，生成 AI 回复，并保存到消息列表。
+    Receive user message, generate AI reply, and save to message list.
     """
     global next_id
     data = request.get_json()
     message_text = data.get('message')
-    max_length = data.get('max_length', 500)  # 默认最大字符数为500
-    if not message_text:
-        logging.debug("No message provided")
-        return jsonify({'status': 'error', 'message': 'No message provided'}), 400
+    max_length = data.get('max_length', 500)  # Default max characters is 500
+    img_name = data.get('img_name', '')
+    img_url = data.get('img_url', '')
+
+    if not message_text and not img_name:
+        logging.debug("No message or image provided")
+        return jsonify({'status': 'error', 'message': 'No message or image provided'}), 400
 
     conversation_id = session.get('conversation_id')
     if not conversation_id:
@@ -171,32 +185,50 @@ def send_message():
         session['conversation_id'] = conversation_id
         messages[conversation_id] = []
 
-    # 添加用户消息，确保包含 'role'
-    user_message = {'id': next_id, 'text': message_text, 'role': 'user'}
+    # Prepare file_ids if image is present
+    file_ids = []
+    if img_name and img_url:
+        # Retrieve file_id from session
+        file_id = session.pop('file_id', None)
+        if file_id:
+            file_ids.append(file_id)
+
+    # Add user message with optional file_ids
+    user_message = {
+        'id': next_id,
+        'text': message_text,
+        'role': 'user',
+        'file_ids': file_ids
+    }
     messages[conversation_id].append(user_message)
     logging.debug(f"Received message: {message_text} with id {next_id} in conversation {conversation_id}")
     next_id += 1
-    save_messages_to_file()  # 保存消息到文件
+    save_messages_to_file()  # Save messages to file
 
-    def handle_ai_response(message_text, max_length, conversation_id):
+    def handle_ai_response(message_text, max_length, conversation_id, file_ids):
         """
-        处理 AI 回复的函数。
+        Handle AI's response.
         """
         global next_id
-        ai_text = send_query(conversation_id, message_text, stream=False)
+        ai_text = send_query(conversation_id, message_text, file_ids=file_ids, stream=False)
 
-        # 根据 max_length 限制 AI 回复的长度
+        # Limit AI's response length
         ai_text = ai_text[:int(max_length)]
 
-        # 添加 AI 回复
-        ai_message = {'id': next_id, 'text': ai_text, 'role': 'assistant'}
+        # Add AI's reply
+        ai_message = {
+            'id': next_id,
+            'text': ai_text,
+            'role': 'assistant',
+            'file_ids': []
+        }
         messages[conversation_id].append(ai_message)
         logging.debug(f"AI responded: {ai_text} with id {next_id} in conversation {conversation_id}")
         next_id += 1
-        save_messages_to_file()  # 保存消息到文件
+        save_messages_to_file()  # Save messages to file
 
-    # 启动新线程处理 AI 回复
-    ai_thread = Thread(target=handle_ai_response, args=(message_text, max_length, conversation_id))
+    # Start a new thread to handle AI response
+    ai_thread = Thread(target=handle_ai_response, args=(message_text, max_length, conversation_id, file_ids))
     ai_thread.start()
 
     return jsonify({'status': 'success', 'user_message': user_message})
@@ -204,7 +236,7 @@ def send_message():
 @app.route('/delete_message', methods=['POST'])
 def delete_message():
     """
-    删除指定 ID 的消息。
+    Delete a message by its ID.
     """
     data = request.get_json()
     message_id = data.get('id')
@@ -220,7 +252,7 @@ def delete_message():
     messages[conversation_id] = [msg for msg in messages[conversation_id] if msg['id'] != message_id]
     if len(messages[conversation_id]) < original_length:
         logging.debug(f"Deleted message with id: {message_id} from conversation {conversation_id}")
-        save_messages_to_file()  # 保存消息到文件
+        save_messages_to_file()  # Save messages to file
         return jsonify({'status': 'success'})
     else:
         logging.debug(f"Message ID {message_id} not found in conversation {conversation_id}")
@@ -229,26 +261,26 @@ def delete_message():
 @app.route('/clear_messages', methods=['POST'])
 def clear_messages():
     """
-    清除所有消息并创建新的对话。
+    Clear all messages and create a new conversation.
     """
     global next_id
-    # 创建新的对话
+    # Create a new conversation
     conversation_id = create_conversation()
     if not conversation_id:
         return jsonify({'status': 'error', 'message': '无法创建新对话'}), 500
 
-    # 更新会话 ID 并清空消息
+    # Update conversation ID and clear messages
     session['conversation_id'] = conversation_id
     messages[conversation_id] = []
     logging.debug(f"Cleared all messages and created new conversation {conversation_id}")
-    save_messages_to_file()  # 保存消息到文件
+    save_messages_to_file()  # Save messages to file
 
     return jsonify({'status': 'success', 'conversation_id': conversation_id})
 
 @app.route('/get_messages', methods=['GET'])
 def get_messages():
     """
-    获取所有消息。
+    Get all messages for the current conversation.
     """
     conversation_id = session.get('conversation_id')
     if not conversation_id or conversation_id not in messages:
@@ -258,12 +290,12 @@ def get_messages():
 @app.route('/api/answer', methods=['POST'])
 def api_answer():
     """
-    处理 API 请求，接收问题并返回 AI 回复。
+    Handle API requests, receive a question, and return AI's answer.
     """
     global next_id
     data = request.get_json()
     question = data.get('question')
-    max_length = data.get('max_length', 500)  # 默认最大字符数为500
+    max_length = data.get('max_length', 500)  # Default max characters is 500
 
     if not question:
         return jsonify({'status': 'error', 'message': 'No question provided'}), 400
@@ -278,21 +310,31 @@ def api_answer():
         session['conversation_id'] = conversation_id
         messages[conversation_id] = []
 
-    # 添加用户消息到消息列表
-    user_message = {'id': next_id, 'text': question, 'role': 'user'}
+    # Add user message to message list
+    user_message = {
+        'id': next_id,
+        'text': question,
+        'role': 'user',
+        'file_ids': []
+    }
     messages[conversation_id].append(user_message)
     logging.debug(f"Added user message: {user_message} to conversation {conversation_id}")
     next_id += 1
     save_messages_to_file()
 
-    # 处理 AI 回复
-    ai_text = send_query(conversation_id, question, stream=False)
+    # Handle AI's response
+    ai_text = send_query(conversation_id, question, file_ids=None, stream=False)
 
-    # 根据 max_length 限制 AI 回复的长度
+    # Limit AI's response length
     ai_text = ai_text[:int(max_length)]
 
-    # 添加 AI 回复到消息列表
-    ai_message = {'id': next_id, 'text': ai_text, 'role': 'assistant'}
+    # Add AI's reply to message list
+    ai_message = {
+        'id': next_id,
+        'text': ai_text,
+        'role': 'assistant',
+        'file_ids': []
+    }
     messages[conversation_id].append(ai_message)
     logging.debug(f"API AI responded: {ai_text} with id {next_id} in conversation {conversation_id}")
     next_id += 1
@@ -303,7 +345,7 @@ def api_answer():
 @app.route('/create_conversation', methods=['POST'])
 def create_new_conversation():
     """
-    创建新的对话，切换到新的 conversation_id，并清空当前消息。
+    Create a new conversation, switch to the new conversation_id, and clear current messages.
     """
     conversation_id = create_conversation()
     if not conversation_id:
@@ -316,6 +358,76 @@ def create_new_conversation():
 
     return jsonify({'status': 'success', 'conversation_id': conversation_id})
 
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    """
+    Handle image uploads from the user.
+    """
+    if 'image' not in request.files:
+        return jsonify({'status': 'error', 'message': 'No image part in the request'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'status': 'error', 'message': 'No selected file'}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        mime_type = file.mimetype or 'application/octet-stream'
+
+        conversation_id = session.get('conversation_id')
+        if not conversation_id:
+            conversation_id = create_conversation()
+            if not conversation_id:
+                return jsonify({'status': 'error', 'message': '无法创建对话'}), 500
+            session['conversation_id'] = conversation_id
+            messages[conversation_id] = []
+
+        payload = {
+            "app_id": SPARKAI_APP_ID,
+            "conversation_id": conversation_id
+        }
+
+        headers = {
+            'X-Appbuilder-Authorization': SPARKAI_AUTH_TOKEN
+            # 'Content-Type' is not set to let requests handle it
+        }
+
+        files = {
+            'file': (filename, file.stream, mime_type)
+        }
+
+        try:
+            response = requests.post(SPARKAI_UPLOAD_URL, headers=headers, data=payload, files=files)
+            response.raise_for_status()
+            data = response.json()
+            upload_id = data.get("id")
+            request_id = data.get("request_id")
+            response_conversation_id = data.get("conversation_id")
+
+            if not upload_id:
+                logging.error("Upload response does not contain 'id'")
+                return jsonify({'status': 'error', 'message': '上传失败，未收到文件ID'}), 500
+
+            # Optionally, construct img_url if available
+            # Assuming SPARKAI provides a URL or you need to construct it
+            img_url = f"https://your-image-host.com/{upload_id}"  # Replace with actual logic if available
+
+            # Store file_id in session to associate with the next message
+            session['file_id'] = upload_id
+
+            logging.debug(f"Uploaded image successfully: {data}")
+            return jsonify({
+                'status': 'success',
+                'img_name': filename,
+                'img_url': img_url
+            })
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to upload image: {e}")
+            return jsonify({'status': 'error', 'message': '图片上传失败'}), 500
+        except Exception as e:
+            logging.error(f"An unexpected error occurred during image upload: {e}")
+            return jsonify({'status': 'error', 'message': '发生未知错误'}), 500
+
 if __name__ == '__main__':
-    # 运行应用，监听所有可用 IP 地址，使用 5000 端口
+    # Run the application, listening on all available IP addresses, using port 5000
     app.run(host='0.0.0.0', port=5000, debug=True)

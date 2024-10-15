@@ -1,17 +1,43 @@
-# 安装说明：
-# 执行如下命令，快速安装Python语言的最新版本AppBuilder-SDK（要求Python >= 3.9)：
-# pip install --upgrade appbuilder-sdk
-import appbuilder
+import requests
 import os
 
-# 设置环境中的TOKEN，以下TOKEN请替换为您的个人TOKEN，个人TOKEN可通过该页面【获取鉴权参数】或控制台页【密钥管理】处获取
-os.environ["APPBUILDER_TOKEN"] = "bce-v3/ALTAK-PbnNQPoBU2iQNqLfyaB6l/a46a7d779bff4c0359d5a7ba3fe867f8f83c88b7"
 
-# 从AppBuilder控制台【个人空间】-【应用】网页获取已发布应用的ID
-app_id = "b58f7742-2963-4d5d-a75f-33477c283afe"
+def main():
+    url = "https://qianfan.baidubce.com/v2/app/conversation/file/upload"
 
-app_builder_client = appbuilder.AppBuilderClient(app_id)
-conversation_id = app_builder_client.create_conversation()
+    payload = {
+        'app_id': 'b58f7742-2963-4d5d-a75f-33477c283afe',
+        'conversation_id': 'a6b0b3b6-975c-4181-9157-af29ff09622b'
+    }
 
-resp = app_builder_client.run(conversation_id, "你好，你能做什么？")
-print(resp.content.answer)
+    headers = {
+        # 移除 'Content-Type'，让 requests 自动处理
+        'X-Appbuilder-Authorization': 'Bearer bce-v3/ALTAK-PbnNQPoBU2iQNqLfyaB6l/a46a7d779bff4c0359d5a7ba3fe867f8f83c88b7'
+    }
+
+    file_path = '/Users/chauncey/Library/CloudStorage/OneDrive-个人/待处理/2022以前/photo/图片/屏幕快照/截屏2024-10-12 下午10.45.16.png'
+
+    # 检查文件是否存在
+    if not os.path.isfile(file_path):
+        print(f"文件不存在: {file_path}")
+        return
+
+    # 使用 with 语句以二进制模式打开文件
+    try:
+        with open(file_path, 'rb') as f:
+            files = {
+                'file': ('IMG_3630.jpeg', f, 'image/png')
+            }
+            response = requests.post(url, headers=headers, data=payload, files=files)
+            response.raise_for_status()  # 检查请求是否成功
+            print("上传成功:", response.text)
+    except UnicodeDecodeError as e:
+        print(f"文件解码错误: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"请求错误: {e}")
+    except Exception as e:
+        print(f"发生其他错误: {e}")
+
+
+if __name__ == '__main__':
+    main()

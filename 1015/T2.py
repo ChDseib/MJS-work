@@ -9,7 +9,11 @@ def main():
         "app_id": "b58f7742-2963-4d5d-a75f-33477c283afe",
         "query": "你好",
         "stream": False,
-        "conversation_id": "03dcaae3-ebb0-4b0a-8c8d-77851ac76124"
+        "conversation_id": "03dcaae3-ebb0-4b0a-8c8d-77851ac76124",
+        "file_ids": [
+            "1b47ba7d-120a-4318-90b8-dd4dbb6db836"
+        ]
+
     })
     headers = {
         'Content-Type': 'application/json',

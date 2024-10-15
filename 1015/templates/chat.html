@@ -107,7 +107,7 @@
         }
 
         #message-input {
-            width: calc(100% - 100px);
+            width: calc(100% - 150px);
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -138,6 +138,30 @@
             gap: 10px;
         }
 
+        #upload-button {
+            background-color: #48c78e;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        #upload-button:hover {
+            background-color: #3db578;
+        }
+
+        /* 图片预览样式 */
+        #image-preview {
+            margin-top: 10px;
+            max-width: 100%;
+            max-height: 150px;
+            display: none; /* 初始隐藏 */
+            border-radius: 8px;
+            box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.05);
+        }
         #clear-button {
             width: 100%;
             padding: 10px;
@@ -202,6 +226,7 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
     </style>
 </head>
 <body>
@@ -218,19 +243,26 @@
         <div class="header">
             <h2>实时聊天</h2>
             <!-- 新增的➕号按钮 -->
-            <button id="add-conversation-button">➕</button>
+            <button id="add-conversation-button">+</button>
         </div>
         <div id="messages">
             <!-- 消息将动态加载 -->
         </div>
         <div class="input-group">
+            <!-- 上传图片按钮 -->
+            <button id="upload-button">上传</button>
+            <!-- 隐藏的文件输入 -->
+            <input type="file" id="image-input" accept="image/*" style="display: none;">
+            <!-- 显示预览的图片 -->
+            <img id="image-preview" src="#" alt="图片预览">
+            <!-- 文本输入框 -->
             <input type="text" id="message-input" placeholder="输入消息...">
             <button id="send-button">发送</button>
         </div>
         <button id="clear-button">清除所有消息</button>
     </div>
 
-    <script>
+   <script>
         document.addEventListener('DOMContentLoaded', () => {
             const messagesDiv = document.getElementById('messages');
             const messageInput = document.getElementById('message-input');
@@ -238,39 +270,49 @@
             const clearButton = document.getElementById('clear-button');
             const addConversationButton = document.getElementById('add-conversation-button');
             const loadingOverlay = document.getElementById('loading-overlay');
+            const uploadButton = document.getElementById('upload-button');
+            const imageInput = document.getElementById('image-input');
+            const imagePreview = document.getElementById('image-preview');
 
-            // 显示加载动画
+            let img_name = '';
+            let img_url = '';
+
+            // Show loading animation
             function showLoading() {
                 loadingOverlay.style.display = 'flex';
             }
 
-            // 隐藏加载动画
+            // Hide loading animation
             function hideLoading() {
                 loadingOverlay.style.display = 'none';
             }
 
-            // 禁用输入和按钮
+            // Disable inputs and buttons
             function disableInputs() {
                 messageInput.disabled = true;
                 sendButton.disabled = true;
                 addConversationButton.disabled = true;
                 clearButton.disabled = true;
+                uploadButton.disabled = true;
+                imageInput.disabled = true;
             }
 
-            // 启用输入和按钮
+            // Enable inputs and buttons
             function enableInputs() {
                 messageInput.disabled = false;
                 sendButton.disabled = false;
                 addConversationButton.disabled = false;
                 clearButton.disabled = false;
+                uploadButton.disabled = false;
+                imageInput.disabled = false;
             }
 
-            // 加载现有消息
+            // Load existing messages
             function loadMessages() {
                 fetch('/get_messages')
                     .then(response => response.json())
                     .then(data => {
-                        messagesDiv.innerHTML = ''; // 清空当前消息
+                        messagesDiv.innerHTML = ''; // Clear current messages
                         data.messages.forEach(msg => {
                             const msgDiv = document.createElement('div');
                             msgDiv.classList.add('message');
@@ -286,6 +328,21 @@
                             msgText.textContent = msg.text;
 
                             msgDiv.appendChild(msgText);
+
+                            // If message contains file_ids, display images
+                            if (msg.file_ids && msg.file_ids.length > 0) {
+                                msg.file_ids.forEach(file_id => {
+                                    const imgElement = document.createElement('img');
+                                    imgElement.src = `https://your-image-host.com/${file_id}`; // Replace with actual image URL logic
+                                    imgElement.alt = 'Uploaded Image';
+                                    imgElement.style.maxWidth = '100px';
+                                    imgElement.style.maxHeight = '100px';
+                                    imgElement.style.display = 'block';
+                                    imgElement.style.marginTop = '10px';
+                                    msgDiv.appendChild(imgElement);
+                                });
+                            }
+
                             messagesDiv.appendChild(msgDiv);
                         });
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -295,30 +352,42 @@
                     });
             }
 
-            // 发送消息
+            // Send message
             sendButton.addEventListener('click', () => {
                 const message = messageInput.value.trim();
-                if (message !== '') {
+                if (message !== '' || img_name !== '') {
                     showLoading();
                     disableInputs();
+
+                    const payload = {
+                        'message': message,
+                        'img_name': img_name,
+                        'img_url': img_url,
+                        'max_length': 500
+                    };
+
                     fetch('/send_message', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ 'message': message })
+                        body: JSON.stringify(payload)
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // 这里只需要清空输入框
+                            // Clear input fields and image preview
                             messageInput.value = '';
+                            img_name = '';
+                            img_url = '';
+                            imagePreview.src = '#';
+                            imagePreview.style.display = 'none';
                         } else {
                             alert('发送失败: ' + data.message);
                         }
                         hideLoading();
                         enableInputs();
-                        loadMessages(); // 重新加载消息
+                        loadMessages(); // Reload messages
                     })
                     .catch(error => {
                         console.error('Error:', error);
@@ -328,14 +397,73 @@
                 }
             });
 
-            // 允许按 Enter 键发送消息
+            // Allow sending message with Enter key
             messageInput.addEventListener('keyup', (event) => {
                 if (event.key === 'Enter') {
                     sendButton.click();
                 }
             });
 
-            // 清除所有消息并创建新对话
+            // Upload image button click event
+            uploadButton.addEventListener('click', () => {
+                imageInput.click();
+            });
+
+            // Handle image selection
+            imageInput.addEventListener('change', () => {
+                const file = imageInput.files[0];
+                if (file) {
+                    // Show preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+
+                    // Upload image to backend
+                    showLoading();
+                    disableInputs();
+
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    fetch('/upload_image', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            img_name = data.img_name;
+                            img_url = data.img_url;
+                            alert('图片上传成功');
+                        } else {
+                            alert('图片上传失败: ' + data.message);
+                            img_name = '';
+                            img_url = '';
+                            imagePreview.src = '#';
+                            imagePreview.style.display = 'none';
+                        }
+                        hideLoading();
+                        enableInputs();
+                        // Clear file input
+                        imageInput.value = '';
+                    })
+                    .catch(error => {
+                        console.error('Error uploading image:', error);
+                        hideLoading();
+                        enableInputs();
+                        alert('图片上传出错');
+                        img_name = '';
+                        img_url = '';
+                        imagePreview.src = '#';
+                        imagePreview.style.display = 'none';
+                    });
+                }
+            });
+
+            // Clear all messages and create a new conversation
             clearButton.addEventListener('click', () => {
                 if (confirm('确定要清除所有消息吗？')) {
                     showLoading();
@@ -346,7 +474,7 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            loadMessages(); // 重新加载消息
+                            loadMessages(); // Reload messages
                             alert('已创建新的对话');
                         } else {
                             alert('清除失败: ' + data.message);
@@ -362,7 +490,7 @@
                 }
             });
 
-            // 新增的➕号按钮点击事件，创建新的对话
+            // Add new conversation button click event
             addConversationButton.addEventListener('click', () => {
                 showLoading();
                 disableInputs();
@@ -372,7 +500,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        loadMessages(); // 重新加载消息
+                        loadMessages(); // Reload messages
                         alert('已创建新的对话');
                     } else {
                         alert('创建对话失败: ' + data.message);
@@ -387,10 +515,10 @@
                 });
             });
 
-            // 定时刷新消息，每2秒调用一次 loadMessages()
+            // Periodically refresh messages every 2 seconds
             setInterval(loadMessages, 2000);
 
-            // 初始加载消息
+            // Initial load of messages
             loadMessages();
         });
     </script>
