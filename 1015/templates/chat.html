@@ -6,8 +6,8 @@
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
+            background-color: #121212; /* Dark mode background */
+            color: #e0e0e0; /* Light text for dark mode */
             margin: 0;
             padding: 0;
             display: flex;
@@ -31,7 +31,7 @@
 
         #chat-container {
             width: 500px;
-            background-color: #ffffff;
+            background-color: #1e1e1e; /* Dark mode container background */
             border-radius: 12px;
             box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
             padding: 20px;
@@ -52,7 +52,7 @@
         }
 
         h2 {
-            color: #555;
+            color: #e0e0e0; /* Light text for dark mode */
             font-weight: 300;
             margin: 0; /* 移除默认的下边距 */
         }
@@ -76,11 +76,11 @@
         #messages {
             flex: 1;
             border-radius: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid #333; /* Dark mode border */
             overflow-y: scroll;
             padding: 10px;
             margin-bottom: 15px;
-            background-color: #f9f9f9;
+            background-color: #2e2e2e; /* Dark mode messages background */
             box-shadow: inset 0px 4px 6px rgba(0, 0, 0, 0.05);
             position: relative;
         }
@@ -131,10 +131,12 @@
         #message-input {
             width: calc(100% - 150px);
             padding: 10px;
-            border: 1px solid #ddd;
+            border: 1px solid #333; /* Dark mode border */
             border-radius: 6px;
             box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.05);
             outline: none;
+            background-color: #2e2e2e; /* Dark mode input background */
+            color: #e0e0e0; /* Light text for dark mode */
         }
 
         #send-button {
@@ -207,12 +209,12 @@
         }
 
         #messages::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #333; /* Dark mode scrollbar track */
             border-radius: 10px;
         }
 
         #messages::-webkit-scrollbar-thumb {
-            background: #bbb;
+            background: #555; /* Dark mode scrollbar thumb */
             border-radius: 10px;
         }
 
@@ -242,6 +244,14 @@
             width: 60px;
             height: 60px;
             animation: spin 1s linear infinite;
+        }
+
+        /* 时间戳样式 */
+        .timestamp {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+            text-align: right;
         }
 
     </style>
@@ -369,6 +379,12 @@
                                     msgDiv.appendChild(imgElement);
                                 });
                             }
+
+                            // 添加时间戳
+                            const timestamp = document.createElement('div');
+                            timestamp.classList.add('timestamp');
+                            timestamp.textContent = new Date().toLocaleTimeString();
+                            msgDiv.appendChild(timestamp);
 
                             messagesDiv.appendChild(msgDiv);
 

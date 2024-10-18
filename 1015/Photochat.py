@@ -9,6 +9,7 @@ from flask_cors import CORS
 import requests
 import json
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
 
 # 加载环境变量
 load_dotenv()
@@ -50,13 +51,15 @@ def load_messages_from_file():
                             message_text = parts[2]
                             message_role = parts[3]
                             file_ids = json.loads(parts[4]) if len(parts) > 4 else []
+                            timestamp = parts[5] if len(parts) > 5 else None
                             if conversation_id not in messages:
                                 messages[conversation_id] = []
                             messages[conversation_id].append({
                                 'id': message_id,
                                 'text': message_text,
                                 'role': message_role,
-                                'file_ids': file_ids
+                                'file_ids': file_ids,
+                                'timestamp': timestamp
                             })
                             if message_id >= next_id:
                                 next_id = message_id + 1  # 更新下一个 ID
@@ -73,7 +76,7 @@ def save_messages_to_file():
     with open(message_file, 'w', encoding='utf-8') as file:
         for conv_id, msgs in messages.items():
             for message in msgs:
-                file.write(f"{conv_id}|{message['id']}|{message['text']}|{message['role']}|{json.dumps(message.get('file_ids', []))}\n")
+                file.write(f"{conv_id}|{message['id']}|{message['text']}|{message['role']}|{json.dumps(message.get('file_ids', []))}|{message.get('timestamp', '')}\n")
     logging.debug(f"已将消息保存到 {message_file}")
 
 # 在启动时加载消息
@@ -212,7 +215,8 @@ def send_message():
         'id': next_id,
         'text': message_text,
         'role': 'user',
-        'file_ids': file_ids
+        'file_ids': file_ids,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     messages[conversation_id].append(user_message)
     logging.debug(f"接收到消息: {message_text}，ID 为 {next_id}，对话ID为 {conversation_id}")
@@ -234,7 +238,8 @@ def send_message():
             'id': next_id,
             'text': ai_text,
             'role': 'assistant',
-            'file_ids': []
+            'file_ids': [],
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         messages[conversation_id].append(ai_message)
         logging.debug(f"AI回应: {ai_text}，ID 为 {next_id}，对话ID为 {conversation_id}")
@@ -271,6 +276,33 @@ def delete_message():
     else:
         logging.debug(f"在对话 {conversation_id} 中未找到消息ID {message_id}")
         return jsonify({'status': 'error', 'message': '未找到消息ID'}), 400
+
+@app.route('/edit_message', methods=['POST'])
+def edit_message():
+    """
+    编辑指定 ID 的消息。
+    """
+    data = request.get_json()
+    message_id = data.get('id')
+    new_text = data.get('text')
+    if message_id is None or new_text is None:
+        logging.debug("未提供消息ID或新文本用于编辑")
+        return jsonify({'status': 'error', 'message': '未提供消息ID或新文本'}), 400
+
+    conversation_id = session.get('conversation_id')
+    if not conversation_id or conversation_id not in messages:
+        return jsonify({'status': 'error', 'message': '未找到对话'}), 400
+
+    for msg in messages[conversation_id]:
+        if msg['id'] == message_id:
+            msg['text'] = new_text
+            msg['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # 更新时间戳
+            logging.debug(f"已编辑ID为 {message_id} 的消息，来自对话 {conversation_id}")
+            save_messages_to_file()  # 保存消息到文件
+            return jsonify({'status': 'success'})
+
+    logging.debug(f"在对话 {conversation_id} 中未找到消息ID {message_id}")
+    return jsonify({'status': 'error', 'message': '未找到消息ID'}), 400
 
 @app.route('/clear_messages', methods=['POST'])
 def clear_messages():
@@ -329,7 +361,8 @@ def api_answer():
         'id': next_id,
         'text': question,
         'role': 'user',
-        'file_ids': []
+        'file_ids': [],
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     messages[conversation_id].append(user_message)
     logging.debug(f"已添加用户消息: {user_message} 到对话 {conversation_id}")
@@ -347,7 +380,8 @@ def api_answer():
         'id': next_id,
         'text': ai_text,
         'role': 'assistant',
-        'file_ids': []
+        'file_ids': [],
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     messages[conversation_id].append(ai_message)
     logging.debug(f"API AI回应: {ai_text}，ID为 {next_id}，对话ID为 {conversation_id}")
