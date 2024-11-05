@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姓名收集</title>
+</head>
+<body>
+<form action="/submit-name" method="post">
+    <label for="name">请输入姓名:</label>
+    <input type="text" id="name" name="name" required>
+    <button type="submit">提交</button>
+</form>
+
+<hr>
+
+<div>
+    <label for="randomName">随机抽取姓名:</label>
+    <input type="text" id="randomName" readonly>
+    <button onclick="pickRandomName()">点名</button>
+</div>
+
+<script>
+    function pickRandomName() {
+        fetch('/pick-random-name')
+            .then(response => response.text())
+            .then(name => {
+                document.getElementById('randomName').value = name;
+            })
+            .catch(error => console.error('Error:', error));
+    }
+</script>
+</body>
+</html>
