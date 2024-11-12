@@ -5,7 +5,7 @@ spark_ai_python
 sparkai~=0.3.0
 Flask-Cors~=5.0.0
 requests~=2.32.3
-pip~=23.2.1
+pip~=23.3
 attrs~=24.2.0
 distro~=1.9.0
 protobuf~=4.25.5
