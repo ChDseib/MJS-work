@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>昌西的西昌</title>
+    <style>
+        /* 基础样式 */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f4f8; /* 浅蓝色背景 */
+            color: #333;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* 水印样式 */
+        #watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: rgba(33, 150, 243, 0.1); /* 专业蓝色半透明 */
+            pointer-events: none;
+            z-index: -1;
+            user-select: none;
+        }
+
+        /* 加载动画样式 */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none; /* 初始隐藏 */
+        }
+
+        .spinner-overlay {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #2196f3; /* 专业蓝色 */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 消息区域样式 */
+        #chat-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            background-color: #ffffff;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 28px;
+            color: #2196f3; /* 专业蓝色 */
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+
+        .btn-primary {
+            background-color: #2196f3;
+        }
+
+        .btn-primary:hover {
+            background-color: #1976d2;
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-success {
+            background-color: #4caf50;
+        }
+
+        .btn-success:hover {
+            background-color: #43a047;
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-warning {
+            background-color: #ff9800;
+        }
+
+        .btn-warning:hover {
+            background-color: #fb8c00;
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 消息显示区域 */
+        #messages {
+            flex: 1;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+            box-shadow: inset 0px 4px 8px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
+            max-width: 70%;
+            word-wrap: break-word;
+            transition: transform 0.2s, background-color 0.3s;
+        }
+
+        .message.user {
+            background-color: #e3f2fd; /* 浅蓝色 */
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .message.user:hover {
+            background-color: #bbdefb;
+            transform: scale(1.02);
+        }
+
+        .message.assistant {
+            background-color: #f1f8e9; /* 浅绿色 */
+            align-self: flex-start;
+            text-align: left;
+        }
+
+        .message.assistant:hover {
+            background-color: #dcedc8;
+            transform: scale(1.02);
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196f3;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        /* 图片预览样式 */
+        #image-preview {
+            margin-top: 10px;
+            max-width: 200px;
+            max-height: 200px;
+            display: none;
+            border-radius: 12px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        #image-preview:hover {
+            transform: scale(1.05);
+        }
+
+        /* 输入区域样式 */
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group button {
+            flex: 0 0 auto;
+        }
+
+        .input-group input[type="text"] {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .input-group input[type="text"]:focus {
+            border-color: #2196f3;
+            box-shadow: 0 0 5px rgba(33, 150, 243, 0.5);
+            outline: none;
+        }
+
+        .input-group input[type="file"] {
+            display: none;
+        }
+
+        /* 按钮图标 */
+        .btn .icon {
+            margin-right: 5px;
+            font-size: 16px;
+        }
+
+        /* Scrollbar customization */
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #bdbdbd;
+            border-radius: 10px;
+        }
+
+        #messages::-webkit-scrollbar-thumb:hover {
+            background: #9e9e9e;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            #chat-container {
+                padding: 20px;
+            }
+
+            .header h2 {
+                font-size: 24px;
+            }
+
+            .message {
+                max-width: 90%;
+            }
+
+            #image-preview {
+                max-width: 100%;
+                max-height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 添加水印 -->
+    <div id="watermark">昌西</div>
+
+    <!-- 加载动画 -->
+    <div id="loading-overlay">
+        <div class="spinner-overlay"></div>
+    </div>
+
+    <div id="chat-container">
+        <!-- Vue 应用将接管这里 -->
+        <div id="app" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+            <!-- 标题和新增对话按钮 -->
+            <div class="header">
+                <h2>西昌</h2>
+                <button class="btn btn-primary" @click="createNewConversation" :disabled="loading">
+                    <span class="icon">➕</span> 新对话
+                </button>
+            </div>
+
+            <!-- 消息显示区域 -->
+            <div id="messages">
+                <div v-for="msg in messages" :key="msg.id" :class="['message', msg.role]">
+                    <span>[[ msg.text ]]</span>
+                </div>
+                <!-- 临时 AI 回复 -->
+                <div v-if="awaiting_ai_reply" class="message assistant temp">
+                    <span>AI 正在回复</span>
+                    <span class="spinner"></span>
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="input-group">
+                <button class="btn btn-success" @click="uploadImage" :disabled="loading">
+                    <span class="icon">📤</span> 上传
+                </button>
+                <input type="file" ref="imageInput" accept="image/*" @change="handleImageUpload">
+
+                <input type="text" v-model="message" placeholder="输入消息..." @keyup.enter="sendMessage" :disabled="loading">
+
+                <button class="btn btn-primary" @click="sendMessage" :disabled="loading">
+                    发送
+                </button>
+                <button class="btn btn-warning" @click="clearMessages" :disabled="loading">
+                    清除
+                </button>
+            </div>
+
+            <!-- 图片预览 -->
+            <div v-if="imagePreview" style="margin-top: 10px;">
+                <img :src="imagePreview" alt="图片预览" id="image-preview">
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <!-- Vue 应用脚本 -->
+    <script>
+        new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'],  // 更改插值符号以避免与其他模板引擎冲突
+            data: {
+                messages: [],
+                message: '',
+                img_name: '',
+                img_url: '',
+                imagePreview: '',
+                awaiting_ai_reply: false,
+                last_message_id: 0,
+                loading: false
+            },
+            methods: {
+                showLoading() {
+                    document.getElementById('loading-overlay').style.display = 'flex';
+                },
+                hideLoading() {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                },
+                disableInputs() {
+                    this.loading = true;
+                },
+                enableInputs() {
+                    this.loading = false;
+                },
+                loadMessages() {
+                    fetch('/get_messages')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.messages = data.messages;
+
+                            // 检测是否有新的 AI 回复
+                            const aiMessages = this.messages.filter(msg => msg.role === 'assistant');
+                            if (aiMessages.length > 0) {
+                                const latestAiMessage = aiMessages[aiMessages.length - 1];
+                                if (latestAiMessage.id > this.last_message_id) {
+                                    // 有新的 AI 回复，取消等待状态
+                                    this.awaiting_ai_reply = false;
+                                    this.last_message_id = latestAiMessage.id;
+                                }
+                            }
+
+                            // 如果最后一条消息不是 AI 回复，且正在等待 AI 回复，则保持等待状态
+                            if (this.awaiting_ai_reply && this.messages.length > 0) {
+                                const lastMsg = this.messages[this.messages.length - 1];
+                                if (lastMsg.role !== 'assistant') {
+                                    this.awaiting_ai_reply = true;
+                                }
+                            }
+
+                            // 滚动到底部
+                            this.$nextTick(() => {
+                                const messagesDiv = document.getElementById('messages');
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            });
+                        })
+                        .catch(error => {
+                            console.error('加载消息时出错:', error);
+                            alert('加载消息时出错');
+                        });
+                },
+                sendMessage() {
+                    if (this.message.trim() === '' && this.img_name === '') {
+                        alert('请输入消息或上传图片');
+                        return;
+                    }
+
+                    this.showLoading();
+                    this.disableInputs();
+
+                    const payload = {
+                        'message': this.message,
+                        'img_name': this.img_name,
+                        'img_url': this.img_url,
+                        'max_length': 500
+                    };
+
+                    fetch('/send_message', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // 清空输入框和图片信息
+                            this.message = '';
+                            this.img_name = '';
+                            this.img_url = '';
+                            this.imagePreview = '';
+
+                            // 设置等待 AI 回复状态
+                            this.awaiting_ai_reply = true;
+                        } else {
+                            alert('发送失败: ' + data.message);
+                        }
+                        this.hideLoading();
+                        this.enableInputs();
+                        this.loadMessages();
+                    })
+                    .catch(error => {
+                        console.error('发送消息时出错:', error);
+                        this.hideLoading();
+                        this.enableInputs();
+                        alert('发送消息时出错');
+                    });
+                },
+                uploadImage() {
+                    this.$refs.imageInput.click();
+                },
+                handleImageUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        // 显示预览
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.imagePreview = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+
+                        // 上传图片到后端
+                        this.showLoading();
+                        this.disableInputs();
+
+                        const formData = new FormData();
+                        formData.append('image', file);
+
+                        fetch('/upload_image', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                this.img_name = data.img_name;
+                                this.img_url = data.img_url;
+                                alert('图片上传成功');
+                            } else {
+                                alert('图片上传失败: ' + data.message);
+                                this.img_name = '';
+                                this.img_url = '';
+                                this.imagePreview = '';
+                            }
+                            this.hideLoading();
+                            this.enableInputs();
+                            // 清除文件输入
+                            this.$refs.imageInput.value = '';
+                        })
+                        .catch(error => {
+                            console.error('上传图片时出错:', error);
+                            this.hideLoading();
+                            this.enableInputs();
+                            alert('上传图片时出错');
+                            this.img_name = '';
+                            this.img_url = '';
+                            this.imagePreview = '';
+                        });
+                    }
+                },
+                clearMessages() {
+                    if (confirm('确定要清除所有消息吗？')) {
+                        this.showLoading();
+                        this.disableInputs();
+                        fetch('/clear_messages', {
+                            method: 'POST'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                this.loadMessages();
+                                alert('已创建新的对话');
+                            } else {
+                                alert('清除失败: ' + data.message);
+                            }
+                            this.hideLoading();
+                            this.enableInputs();
+                        })
+                        .catch(error => {
+                            console.error('清除消息时出错:', error);
+                            this.hideLoading();
+                            this.enableInputs();
+                            alert('清除消息时出错');
+                        });
+                    }
+                },
+                createNewConversation() {
+                    this.showLoading();
+                    this.disableInputs();
+                    fetch('/create_conversation', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            this.loadMessages();
+                            alert('已创建新的对话');
+                        } else {
+                            alert('创建对话失败: ' + data.message);
+                        }
+                        this.hideLoading();
+                        this.enableInputs();
+                    })
+                    .catch(error => {
+                        console.error('创建对话时出错:', error);
+                        this.hideLoading();
+                        this.enableInputs();
+                        alert('创建对话时出错');
+                    });
+                }
+            },
+            mounted() {
+                // 初始加载消息
+                this.loadMessages();
+                // 定时刷新消息，每2秒调用一次 loadMessages
+                setInterval(this.loadMessages, 2000);
+            }
+        });
+    </script>
+</body>
+</html>
