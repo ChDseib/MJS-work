@@ -239,7 +239,7 @@ def index():
     if 'conversation_id' not in session:
         conversation_id = create_conversation()
         if not conversation_id:
-            return "无法创建对话稍后重试。", 500
+            return "无法创建对话���后重试。", 500
         session['conversation_id'] = conversation_id
     return render_template('chat.html')
 
@@ -358,19 +358,34 @@ def delete_message():
 
 @app.route('/clear_messages', methods=['POST'])
 def clear_messages():
-    """
-    清除所有消息并创建新的对话。
-    """
-    conversation_id = create_conversation()
+    """清除指定对话的所有消息并从数据库中删除该对话"""
+    conversation_id = session.get('conversation_id')
     if not conversation_id:
-        return jsonify({'status': 'error', 'message': '无法创建新对话'}), 500
+        return jsonify({'status': 'error', 'message': '未找到对话'}), 400
 
-    session['conversation_id'] = conversation_id
     try:
-        # 清除所有消息
-        clear_messages_db(conversation_id)
-        logging.debug(f"已清除所有消息并创建新的对话 {conversation_id}")
-        return jsonify({'status': 'success', 'conversation_id': conversation_id})
+        # 删除数据库中的所有相关消息
+        query = """
+        DELETE FROM messages
+        WHERE conversation_id = %s
+        """
+        params = (conversation_id,)
+        execute_query(query, params)
+
+        # 创建新的对话
+        new_conversation_id = create_conversation()
+        if not new_conversation_id:
+            return jsonify({'status': 'error', 'message': '无法创建新对话'}), 500
+
+        # 更新会话中的对话ID
+        session['conversation_id'] = new_conversation_id
+        
+        logging.debug(f"已删除对话 {conversation_id} 的所有消息并创建新对话 {new_conversation_id}")
+        return jsonify({
+            'status': 'success', 
+            'conversation_id': new_conversation_id,
+            'message': '已删除对话并创建新的对话'
+        })
     except Exception as e:
         logging.error(f"清除消息失败: {e}")
         return jsonify({'status': 'error', 'message': '清除消息失败'}), 500
@@ -485,7 +500,7 @@ def upload_image():
     处理用户上传的图片，并保存到 static/uploads 文件夹。
     """
     if 'image' not in request.files:
-        return jsonify({'status': 'error', 'message': '请求中没有图片部分'}), 400
+        return jsonify({'status': 'error', 'message': '请求中没有图���部分'}), 400
 
     file = request.files['image']
     if file.filename == '':

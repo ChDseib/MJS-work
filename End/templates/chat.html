@@ -709,7 +709,7 @@
                     }
                 },
                 clearMessages() {
-                    if (confirm('确定要清除所有消息吗？')) {
+                    if (confirm('确定要清除当前对话吗？此操作将永久删除所有相关消息。')) {
                         this.showLoading();
                         this.disableInputs();
                         fetch('/clear_messages', {
@@ -718,8 +718,12 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.status === 'success') {
+                                // 更新当前对话ID
+                                this.currentConversationId = data.conversation_id;
+                                // 重新加载消息和对话列表
                                 this.loadMessages();
-                                alert('已创建新的对话');
+                                this.loadConversations();
+                                alert(data.message);
                             } else {
                                 alert('清除失败: ' + data.message);
                             }
