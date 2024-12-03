@@ -239,7 +239,7 @@ def index():
     if 'conversation_id' not in session:
         conversation_id = create_conversation()
         if not conversation_id:
-            return "无法创建对话，请稍后重试。", 500
+            return "无法创建对话稍后重试。", 500
         session['conversation_id'] = conversation_id
     return render_template('chat.html')
 
@@ -421,7 +421,7 @@ def api_answer():
     result = fetch_all(query, params)
     next_id = result[0]['max_id'] + 1 if result and result[0]['max_id'] else 1
 
-    # 添加用户消息到消息列表
+    # 添加用户消息到消列表
     user_message = {
         'id': next_id,
         'text': question,
@@ -552,6 +552,61 @@ def upload_image():
         except Exception as e:
             logging.error(f"上传图片时发生未知错误: {e}")
             return jsonify({'status': 'error', 'message': '发生未知错误'}), 500
+
+@app.route('/get_conversations')
+def get_conversations():
+    """获取所有对话历史"""
+    try:
+        # 首先获取所有不同的对话ID和它们的第一条消息时间
+        query = """
+        SELECT 
+            m.conversation_id,
+            MIN(m.timestamp) as start_time,
+            (
+                SELECT text 
+                FROM messages 
+                WHERE conversation_id = m.conversation_id 
+                ORDER BY message_id DESC 
+                LIMIT 1
+            ) as last_message,
+            (
+                SELECT timestamp 
+                FROM messages 
+                WHERE conversation_id = m.conversation_id 
+                ORDER BY message_id DESC 
+                LIMIT 1
+            ) as last_time
+        FROM messages m
+        GROUP BY m.conversation_id
+        ORDER BY last_time DESC
+        """
+        conversations = fetch_all(query)
+        
+        # 处理每个对话的预览信息
+        for conv in conversations:
+            # 确保时间戳是字符串格式
+            conv['start_time'] = conv['start_time'].isoformat() if conv['start_time'] else None
+            conv['last_time'] = conv['last_time'].isoformat() if conv['last_time'] else None
+            # 限制预览文本长度
+            if conv['last_message']:
+                conv['preview'] = conv['last_message'][:50] + ('...' if len(conv['last_message']) > 50 else '')
+            else:
+                conv['preview'] = '新对话'
+                
+        return jsonify({'conversations': conversations})
+    except Exception as e:
+        logging.error(f"获取对话历史失败: {e}")
+        return jsonify({'status': 'error', 'message': '获取对话历史失败'}), 500
+
+@app.route('/switch_conversation/<conversation_id>', methods=['POST'])
+def switch_conversation(conversation_id):
+    """切换到指定的对话"""
+    try:
+        session['conversation_id'] = conversation_id
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        logging.error(f"切换对话失败: {e}")
+        return jsonify({'status': 'error', 'message': '切换对话失败'}), 500
 
 if __name__ == '__main__':
     # 运行应用，监听所有可用IP地址，使用5001端口

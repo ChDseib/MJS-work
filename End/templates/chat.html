@@ -2,16 +2,46 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>昌西的西昌</title>
+    <title>昌西的天文助手</title>
     <style>
+        /* 定义颜色变量 */
+        :root {
+            /* 主色调 - 采用 Google 风格 */
+            --primary-color: #4285f4; /* Google 蓝 */
+            --secondary-color: #34a853; /* Google 绿 */
+            --accent-color: #fbbc05; /* Google 黄 */
+
+            /* 背景颜色 */
+            --background-color: #ffffff;
+            --header-background: #4285f4;
+            --messages-background: #ffffff;
+            --footer-background: #f8f9fa;
+
+            /* 文本颜色 */
+            --text-color: #202124;
+            --header-text-color: #ffffff;
+            --button-text-color: #ffffff;
+
+            /* 边框颜色 */
+            --border-color: #e0e0e0;
+
+            /* 水印颜色 */
+            --watermark-color: rgba(66, 133, 244, 0.03);
+        }
+
         /* 基础样式 */
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f0f4f8; /* 浅蓝色背景 */
-            color: #333;
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
             height: 100vh;
+            width: 100vw;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,11 +54,12 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 100px;
-            color: rgba(33, 150, 243, 0.1); /* 专业蓝色半透明 */
+            font-size: 150px;
+            color: var(--watermark-color);
             pointer-events: none;
             z-index: -1;
             user-select: none;
+            text-shadow: 0 0 20px var(--watermark-color);
         }
 
         /* 加载动画样式 */
@@ -48,7 +79,7 @@
 
         .spinner-overlay {
             border: 8px solid #f3f3f3;
-            border-top: 8px solid #2196f3; /* 专业蓝色 */
+            border-top: 8px solid var(--primary-color);
             border-radius: 50%;
             width: 60px;
             height: 60px;
@@ -60,36 +91,156 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* 消息区域样式 */
+        /* 聊天容器样式 */
         #chat-container {
             width: 100%;
-            max-width: 1200px;
             height: 100%;
-            background-color: #ffffff;
-            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            padding: 40px;
-            box-sizing: border-box;
-            overflow: hidden;
+            background-color: var(--background-color);
+            position: relative;
         }
 
+        /* 头部样式 */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            padding: 20px 30px;
+            background-color: var(--primary-color);
+            color: var(--header-text-color);
+            flex-shrink: 0;
         }
 
         .header h2 {
             margin: 0;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .header h2 .icon {
+            margin-right: 10px;
             font-size: 28px;
-            color: #2196f3; /* 专业蓝色 */
+        }
+
+        /* 在 .header 样式中添加新的按钮样式 */
+        .header .btn-primary {
+            background-color: white;        /* 白色背景 */
+            border: none;                   /* 移除边框 */
+            color: var(--primary-color);    /* 使用主色调(蓝色)作为文字颜色 */
+        }
+
+        .header .btn-primary:hover {
+            background-color: #f5f5f5;      /* 悬停时略微灰白色 */
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 消息显示区域 */
+        #messages {
+            flex: 1;
+            padding: 20px 30px;
+            overflow-y: auto;
+            background-color: var(--messages-background);
+            position: relative;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 15px 20px;
+            border-radius: 20px;
+            max-width: 70%;
+            word-wrap: break-word;
+            position: relative;
+            font-size: 16px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .message.user {
+            background-color: #f8f9fa; /* 浅灰色背景 */
+            border: 1px solid #e0e0e0;
+            margin-left: auto; /* 右对齐 */
+            text-align: right;
+            color: var(--text-color);
+        }
+
+        .message.user:hover {
+            background-color: #f1f3f4;
+            transform: scale(1.02);
+        }
+
+        .message.assistant {
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            text-align: left;
+            color: var(--text-color);
+        }
+
+        .message.assistant:hover {
+            background-color: #f1f3f4;
+            transform: scale(1.02);
+        }
+
+        /* 临时 AI 回复样式 */
+        .message.assistant.temp {
+            display: flex;
+            align-items: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        /* 输入区域样式 */
+        .input-group {
+            display: flex;
+            align-items: center;
+            padding: 15px 30px;
+            background-color: var(--footer-background);
+            gap: 10px;
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-group button {
+            flex: 0 0 auto;
+        }
+
+        .input-group input[type="text"] {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            font-size: 14px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .input-group input[type="text"]:hover {
+            box-shadow: 0 1px 6px rgba(32,33,36,.28);
+            border-color: rgba(223,225,229,0);
+        }
+
+        .input-group input[type="text"]:focus {
+            box-shadow: 0 1px 6px rgba(32,33,36,.28);
+            border-color: rgba(223,225,229,0);
+        }
+
+        .input-group input[type="file"] {
+            display: none;
         }
 
         /* 按钮样式 */
         .btn {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -98,93 +249,44 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #fff;
+            color: var(--button-text-color);
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         .btn-primary {
-            background-color: #2196f3;
+            background-color: var(--primary-color);
         }
 
         .btn-primary:hover {
-            background-color: #1976d2;
+            background-color: #3367d6; /* Google 深蓝 */
             transform: translateY(-2px);
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         }
 
         .btn-success {
-            background-color: #4caf50;
+            background-color: var(--secondary-color);
         }
 
         .btn-success:hover {
-            background-color: #43a047;
+            background-color: #2d9144; /* Google 深绿 */
             transform: translateY(-2px);
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         }
 
         .btn-warning {
-            background-color: #ff9800;
+            background-color: var(--accent-color);
         }
 
         .btn-warning:hover {
-            background-color: #fb8c00;
+            background-color: #f9ab00; /* Google 深黄 */
             transform: translateY(-2px);
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         }
 
-        /* 消息显示区域 */
-        #messages {
-            flex: 1;
-            border-radius: 12px;
-            border: 1px solid #ddd;
-            overflow-y: auto;
-            padding: 20px;
-            margin-bottom: 20px;
-            background-color: #f9f9f9;
-            box-shadow: inset 0px 4px 8px rgba(0, 0, 0, 0.05);
-            position: relative;
-        }
-
-        .message {
-            margin: 10px 0;
-            padding: 15px 20px;
-            border-radius: 12px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
-            max-width: 70%;
-            word-wrap: break-word;
-            transition: transform 0.2s, background-color 0.3s;
-        }
-
-        .message.user {
-            background-color: #e3f2fd; /* 浅蓝色 */
-            align-self: flex-end;
-            text-align: right;
-        }
-
-        .message.user:hover {
-            background-color: #bbdefb;
-            transform: scale(1.02);
-        }
-
-        .message.assistant {
-            background-color: #f1f8e9; /* 浅绿色 */
-            align-self: flex-start;
-            text-align: left;
-        }
-
-        .message.assistant:hover {
-            background-color: #dcedc8;
-            transform: scale(1.02);
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #2196f3;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-left: 10px;
+        /* 按钮图标 */
+        .btn .icon {
+            margin-right: 5px;
+            font-size: 16px;
         }
 
         /* 图片预览样式 */
@@ -202,73 +304,31 @@
             transform: scale(1.05);
         }
 
-        /* 输入区域样式 */
-        .input-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .input-group button {
-            flex: 0 0 auto;
-        }
-
-        .input-group input[type="text"] {
-            flex: 1;
-            padding: 10px 15px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-
-        .input-group input[type="text"]:focus {
-            border-color: #2196f3;
-            box-shadow: 0 0 5px rgba(33, 150, 243, 0.5);
-            outline: none;
-        }
-
-        .input-group input[type="file"] {
-            display: none;
-        }
-
-        /* 按钮图标 */
-        .btn .icon {
-            margin-right: 5px;
-            font-size: 16px;
-        }
-
-        /* Scrollbar customization */
+        /* 自定义滚动条 */
         #messages::-webkit-scrollbar {
             width: 8px;
         }
 
         #messages::-webkit-scrollbar-track {
-            background: #e0e0e0;
-            border-radius: 10px;
+            background: #f8f9fa;
         }
 
         #messages::-webkit-scrollbar-thumb {
-            background: #bdbdbd;
-            border-radius: 10px;
+            background: #dadce0;
         }
 
         #messages::-webkit-scrollbar-thumb:hover {
-            background: #9e9e9e;
+            background: #bdc1c6;
         }
 
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
-
-        /* 响应式调整 */
+        /* 响应式设计 */
         @media (max-width: 768px) {
-            #chat-container {
-                padding: 20px;
+            .header {
+                padding: 15px 20px;
             }
 
             .header h2 {
-                font-size: 24px;
+                font-size: 20px;
             }
 
             .message {
@@ -279,12 +339,129 @@
                 max-width: 100%;
                 max-height: 150px;
             }
+
+            .input-group {
+                padding: 10px 20px;
+            }
+        }
+
+        .play-audio-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 10px;
+        }
+        .play-audio-btn:hover {
+            color: #333;
+        }
+        /* 可以使用图标字体来显示播放按钮，这里使用简单的文字 */
+        .play-audio-btn::before {
+            content: "🔊";
+        }
+
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 300px;
+            background-color: var(--primary-color);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            color: white;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .conversation-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .conversation-item {
+            background-color: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .conversation-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            background-color: #f8f9fa;
+        }
+
+        .conversation-item.active {
+            background-color: #e8f0fe;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.2);
+        }
+
+        .conversation-item.active:hover {
+            background-color: #e8f0fe;
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+        }
+
+        .conversation-preview {
+            font-size: 14px;
+        }
+
+        .conversation-time {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .conversation-text {
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 修改主内容区域样式 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* 自定义滚动条样式 */
+        .conversation-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .conversation-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .conversation-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .conversation-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
 <body>
     <!-- 添加水印 -->
-    <div id="watermark">昌西</div>
+    <div id="watermark">✨</div> <!-- 使用星星表情符号作为水印 -->
 
     <!-- 加载动画 -->
     <div id="loading-overlay">
@@ -293,58 +470,83 @@
 
     <div id="chat-container">
         <!-- Vue 应用将接管这里 -->
-        <div id="app" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
-            <!-- 标题和新增对话按钮 -->
-            <div class="header">
-                <h2>西昌</h2>
-                <button class="btn btn-primary" @click="createNewConversation" :disabled="loading">
-                    <span class="icon">➕</span> 新对话
-                </button>
-            </div>
-
-            <!-- 消息显示区域 -->
-            <div id="messages">
-                <div v-for="msg in messages" :key="msg.id" :class="['message', msg.role]">
-                    <span>[[ msg.text ]]</span>
+        <div id="app" style="width: 100%; height: 100%; display: flex;">
+            <!-- 新增侧边栏 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>历史对话</h3>
                 </div>
-                <!-- 临时 AI 回复 -->
-                <div v-if="awaiting_ai_reply" class="message assistant temp">
-                    <span>AI 正在回复</span>
-                    <span class="spinner"></span>
+                <div class="conversation-list">
+                    <div v-for="conv in conversations" 
+                         :key="conv.conversation_id" 
+                         class="conversation-item"
+                         :class="{ active: conv.conversation_id === currentConversationId }"
+                         @click="switchConversation(conv.conversation_id)">
+                        <div class="conversation-preview">
+                            <div class="conversation-time">[[ formatTime(conv.last_time) ]]</div>
+                            <div class="conversation-text">[[ conv.preview ]]</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 输入区域 -->
-            <div class="input-group">
-                <button class="btn btn-success" @click="uploadImage" :disabled="loading">
-                    <span class="icon">📤</span> 上传
-                </button>
-                <input type="file" ref="imageInput" accept="image/*" @change="handleImageUpload">
+            <!-- 主聊天区域 -->
+            <div class="main-content">
+                <!-- 标题和新增对话按钮 -->
+                <div class="header">
+                    <h2><span class="icon">🔭</span> 昌西的天文助手</h2> <!-- 使用望远镜图标 -->
+                    <button class="btn btn-primary" @click="createNewConversation" :disabled="loading">
+                        <span class="icon">➕</span> 新对话
+                    </button>
+                </div>
 
-                <input type="text" v-model="message" placeholder="输入消息..." @keyup.enter="sendMessage" :disabled="loading">
+                <!-- 消息显示区域 -->
+                <div id="messages">
+                    <div v-for="msg in messages" :key="msg.id" :class="['message', msg.role]">
+                        <span>[[ msg.text ]]</span>
+                        <button class="play-audio-btn" onclick="playMessage('[[ msg.text ]]')"></button>
+                    </div>
+                    <!-- 临时 AI 回复 -->
+                    <div v-if="awaiting_ai_reply" class="message assistant temp">
+                        <span>🤖 AI 正在回复</span>
+                        <span class="spinner"></span>
+                    </div>
+                </div>
 
-                <button class="btn btn-primary" @click="sendMessage" :disabled="loading">
-                    发送
-                </button>
-                <button class="btn btn-warning" @click="clearMessages" :disabled="loading">
-                    清除
-                </button>
-            </div>
+                <!-- 输入区域 -->
+                <div class="input-group">
+                    <button class="btn btn-success" @click="uploadImage" :disabled="loading">
+                        <span class="icon">📤</span> 上传
+                    </button>
+                    <input type="file" ref="imageInput" accept="image/*" @change="handleImageUpload">
 
-            <!-- 图片预览 -->
-            <div v-if="imagePreview" style="margin-top: 10px;">
-                <img :src="imagePreview" alt="图片预览" id="image-preview">
+                    <input type="text" v-model="message" placeholder="输入消息..." @keyup.enter="sendMessage" :disabled="loading">
+
+                    <button class="btn btn-primary" @click="sendMessage" :disabled="loading">
+                        <span class="icon">💬</span> 发送
+                    </button>
+                    <button class="btn btn-warning" @click="clearMessages" :disabled="loading">
+                        <span class="icon">🧹</span> 清除
+                    </button>
+                </div>
+
+                <!-- 图片预览 -->
+                <div v-if="imagePreview" style="padding: 0 30px 15px 30px;">
+                    <img :src="imagePreview" alt="图片预览" id="image-preview">
+                </div>
             </div>
         </div>
     </div>
 
     <!-- 引入 Vue.js -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Vue 应用脚本 -->
     <script>
         new Vue({
             el: '#app',
-            delimiters: ['[[', ']]'],  // 更改插值符号以避免与其他模板引擎冲突
+            delimiters: ['[[', ']]'],
             data: {
                 messages: [],
                 message: '',
@@ -353,7 +555,9 @@
                 imagePreview: '',
                 awaiting_ai_reply: false,
                 last_message_id: 0,
-                loading: false
+                loading: false,
+                conversations: [], // 存储所有对话历史
+                currentConversationId: '', // 当前选中的对话 ID
             },
             methods: {
                 showLoading() {
@@ -497,7 +701,7 @@
                             console.error('上传图片时出错:', error);
                             this.hideLoading();
                             this.enableInputs();
-                            alert('上传图片时出错');
+                            alert('上传片时出错');
                             this.img_name = '';
                             this.img_url = '';
                             this.imagePreview = '';
@@ -553,15 +757,189 @@
                         this.enableInputs();
                         alert('创建对话时出错');
                     });
-                }
+                },
+                // 修改加载对话历史的方法
+                loadConversations() {
+                    fetch('/get_conversations')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.conversations) {
+                                this.conversations = data.conversations;
+                                // 如果还没有选中的对话，设置为当前对话
+                                if (!this.currentConversationId && this.conversations.length > 0) {
+                                    this.currentConversationId = this.conversations[0].conversation_id;
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('加载对话历史失败:', error);
+                        });
+                },
+
+                // 修改格式化时间的方法
+                formatTime(timestamp) {
+                    if (!timestamp) return '未知时间';
+                    const date = new Date(timestamp);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+
+                // 修改切换对话的方法
+                switchConversation(conversationId) {
+                    if (this.currentConversationId === conversationId) return;
+                    
+                    this.currentConversationId = conversationId;
+                    this.showLoading();
+                    fetch(`/switch_conversation/${conversationId}`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            this.loadMessages();
+                        }
+                        this.hideLoading();
+                    })
+                    .catch(error => {
+                        console.error('切换对话失败:', error);
+                        this.hideLoading();
+                        alert('切换对话失败');
+                    });
+                },
             },
             mounted() {
-                // 初始加载消息
+                // 初始加载
+                this.loadConversations();
                 this.loadMessages();
-                // 定时刷新消息，每2秒调用一次 loadMessages
-                setInterval(this.loadMessages, 2000);
+                
+                // 定时刷新（可以适当调整刷新间隔）
+                setInterval(() => {
+                    this.loadMessages();
+                    this.loadConversations();
+                }, 5000); // 改为5秒刷新一次，避免太频繁
             }
         });
+
+        // 添加语音播放功能
+        function playMessage(text) {
+            console.log('开始播放语音，原始文本:', text);
+            
+            // 创建语音合成实例
+            const synth = window.speechSynthesis;
+            
+            // 清理文本，移除特殊字符和多余空格
+            let cleanText = text
+                .replace(/[^\u4e00-\u9fa5。，！？：；、]/g, ' ') // 只保留中文字符和标点符号
+                .replace(/\s+/g, ' ')  // 将多个空格合并为一个
+                .trim();
+            
+            console.log('清理后的文本:', cleanText);
+            
+            // 获取所有可用的语音
+            let voices = synth.getVoices();
+            console.log('可用的语音列表:', voices);
+            
+            // 查找中文语音
+            let chineseVoice = voices.find(voice => 
+                voice.lang.includes('zh') || 
+                voice.lang.includes('cmn') || 
+                voice.name.includes('Chinese')
+            );
+            
+            console.log('找到的中文语音:', chineseVoice);
+            
+            // 创建语音对象
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            
+            if (chineseVoice) {
+                utterance.voice = chineseVoice;
+            } else {
+                console.warn('未找到中文语音，使用默认语音');
+            }
+            
+            // 设置语音参数
+            utterance.lang = 'zh-CN';       // 设置为中文
+            utterance.rate = 1.0;           // 语速
+            utterance.pitch = 1.0;          // 音高
+            
+            // 添加事件监听
+            utterance.onstart = () => {
+                console.log('语音播放开始');
+            };
+            
+            utterance.onend = () => {
+                console.log('语音播放结束');
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('语音合成错误:', event);
+                alert('语音播放失败，请检查浏览器设置是否允许语音播放');
+            };
+            
+            try {
+                // 在播放新语音前取消所有正在播放的语音
+                synth.cancel();
+                
+                // 播放语音
+                synth.speak(utterance);
+                
+                // 如果5秒后还没有开始播放，可能是出现了问题
+                setTimeout(() => {
+                    if (!synth.speaking) {
+                        console.warn('语音播放可能失败');
+                        alert('语音播放失败，请检查浏览器设置');
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                console.error('语音播放出错:', error);
+                alert('语音播放出错，请检查浏览器设置');
+            }
+        }
+
+        // 确保在页面加载时加载语音列表
+        let voicesLoaded = false;
+
+        window.speechSynthesis.onvoiceschanged = () => {
+            if (!voicesLoaded) {
+                voicesLoaded = true;
+                console.log('语音列表加载完成:', window.speechSynthesis.getVoices());
+            }
+        };
+
+        // 如果5秒后还没有加载到语音列表，显示警告
+        setTimeout(() => {
+            if (!voicesLoaded) {
+                console.warn('语音列表加载可能失败');
+                alert('语音功能可能不可用，请检查浏览器设置');
+            }
+        }, 5000);
+
+        // 在现有的displayMessage函数中修改消息显示部分
+        function displayMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.role}`;
+            
+            const messageText = document.createElement('p');
+            messageText.textContent = message.text;
+            messageDiv.appendChild(messageText);
+            
+            // 如果是AI回复，添加播放按钮
+            if (message.role === 'assistant') {
+                const playButton = document.createElement('button');
+                playButton.className = 'play-audio-btn';
+                playButton.onclick = () => playMessage(message.text);
+                messageDiv.appendChild(playButton);
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     </script>
 </body>
 </html>
